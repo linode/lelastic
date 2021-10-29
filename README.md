@@ -1,6 +1,6 @@
 # lelastic
 
-### what is my-dhcpd
+### what is lelastic
 lelastic is a elastic IP client designed to make the use of elastic IPs as easy as possible
 it does not need any configuration dependencies or advanced bgp skills
 
