@@ -6,8 +6,9 @@ it does not need any configuration dependencies or advanced bgp skills
 
 ### how it works
 a few assumptions are made by this tool:
-- your elastic IP is configured on the system (for ipv4 a /32 and for ipv6 a /64 or /56 is used)
-- for ipv6 you have to use the entire block in a single allocation (as of right now). this can and will be improved
+- your elastic IP needs to be configured on "lo" interface
+- for ipv4 you need to configure the IP as a /32 tied to the loopback interface
+- for ipv6 you can use any IP out of your /64 or /56 and of any subnet size as a loopback IP. if you want to announce your subnet as a /56 you need to toggle the flag `-send56`
 
 ### install:
 ```
@@ -31,6 +32,8 @@ Usage of ./lelastic:
         advertise as primary
   -secondary
         advertise as secondary
+  -send56
+        Advertise ipv6 as /56 subnet
 ```
 
 
@@ -43,4 +46,9 @@ Usage of ./lelastic:
 - to annnounce the linode as secondary simply run
 ```
 ./lelastic -dcid 10 -secondary
+```
+
+- to annnounce the IPv6 on your loopback as a /56 subnet
+```
+./lelastic -dcid 10 -primary -send56
 ```

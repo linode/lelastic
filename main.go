@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -21,6 +22,7 @@ func main() {
 	loglevel := flag.String("loglevel", "info", "set log level: trace, debug, info or warn")
 	logjson := flag.Bool("logjson", false, "set log format to json")
 	dcid := flag.Int("dcid", 0, "dcid for your DC")
+	send56 := flag.Bool("send56", false, "Advertise ipv6 as /56 subnet")
 
 	flag.Parse()
 
@@ -54,7 +56,8 @@ func main() {
 	case "warn":
 		log.SetLevel(log.WarnLevel)
 	default:
-		log.WithFields(log.Fields{"Topic": "Main"}).Warn("unknown log level, only trace, debug, info and warn are supported, falling back to loglevel info")
+		log.WithFields(log.Fields{"Topic": "Main"}).
+			Warn("unknown log level, only trace, debug, info and warn are supported, falling back to loglevel info")
 		log.SetLevel(log.InfoLevel)
 	}
 
@@ -69,10 +72,11 @@ func main() {
 		log.WithFields(log.Fields{"Topic": "Main"}).Fatal("use either primary or secondary flag")
 	}
 
-	c, err := NewClient(myCommunity)
+	c, err := NewClient(myCommunity, *send56)
 	if err != nil {
 		log.WithFields(log.Fields{"Topic": "Main"}).Fatal("failed to initiate the client: ", err)
 	}
+
 	c.wg.Add(1)
 
 	for i := 1; i <= 4; i++ {
@@ -80,7 +84,7 @@ func main() {
 		if err := c.AddRs(rs); err != nil {
 			log.WithFields(log.Fields{"Topic": "Neighbor", "Neighbor": rs}).Fatal("failed adding neighbor")
 		}
-		//log.WithFields(log.Fields{"Topic": "Neighbor", "Neighbor": rs}).Info("added neighbor")
+		// log.WithFields(log.Fields{"Topic": "Neighbor", "Neighbor": rs}).Info("added neighbor")
 	}
 
 	if err := c.addRoutes(); err != nil {
@@ -89,5 +93,4 @@ func main() {
 
 	log.WithFields(log.Fields{"Topic": "Main"}).Info("Running....")
 	c.wg.Wait()
-
 }

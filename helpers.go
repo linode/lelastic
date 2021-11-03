@@ -2,15 +2,17 @@ package main
 
 import (
 	"fmt"
+	"net"
+	"strconv"
+	"strings"
+
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	api "github.com/osrg/gobgp/api"
 	log "github.com/sirupsen/logrus"
-	"net"
-	"strconv"
-	"strings"
 )
 
+// IPNet is a extension of net.IPNet with some addons
 type IPNet net.IPNet
 
 func (i IPNet) String() string {
@@ -18,14 +20,15 @@ func (i IPNet) String() string {
 	return fmt.Sprintf("%v/%v", i.IP, j)
 }
 
+// Plen returns the prefix len as uint
 func (i IPNet) Plen() uint32 {
 	j, _ := i.Mask.Size()
 	return uint32(j)
 }
 
+// IPNetFromAddr reads net.Addr and converts it to IPNet
 func IPNetFromAddr(a net.Addr) (*IPNet, error) {
 	_, p, err := net.ParseCIDR(a.String())
-
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +58,7 @@ func parseCommunity(c string) (uint32, error) {
 
 // compile goBGP path type from prefix, next hop and bgp community
 func getPath(p IPNet, nh string, myCom string) (*api.Path, error) {
-	//convert human readable community to uint32
+	// convert human readable community to uint32
 	c, err := parseCommunity(myCom)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse community: %w", err)
@@ -98,7 +101,8 @@ func getPath(p IPNet, nh string, myCom string) (*api.Path, error) {
 		Origin: 2, // needs to be 2 for static route redistribution
 	})
 
-	log.WithFields(log.Fields{"Topic": "Helper", "Route": p}).Tracef("generated path NLRI %v with community %v", family.Afi, myCom)
+	log.WithFields(log.Fields{"Topic": "Helper", "Route": p}).
+		Tracef("generated path NLRI %v with community %v", family.Afi, myCom)
 
 	return &api.Path{
 		Family: family,
@@ -107,33 +111,72 @@ func getPath(p IPNet, nh string, myCom string) (*api.Path, error) {
 	}, nil
 }
 
-func getIPs() ([]IPNet, error) {
-	addrs, err := net.InterfaceAddrs()
+func getIPs(v6Mask int) ([]IPNet, error) {
+	// addrs, err := net.InterfaceAddrs()
+	lo, err := net.InterfaceByName("lo")
+	if err != nil {
+		return nil, err
+	}
+	addrs, err := lo.Addrs()
 	if err != nil {
 		return nil, err
 	}
 
-	var ips []IPNet
+	sendMask := net.CIDRMask(v6Mask, 128)
+
+	//  var ips []IPNet
+	ips := make(map[string]*IPNet)
 
 	for _, addr := range addrs {
 		ip, err := IPNetFromAddr(addr)
 		if err != nil {
 			log.WithFields(log.Fields{"Topic": "Helper", "Route": addr, "Error": "invalid IP"}).Warn("invalid IP")
-		}
-		if !ip.IP.IsGlobalUnicast() || ip.IP.IsPrivate() {
-			log.WithFields(log.Fields{"Topic": "Helper", "Route": ip, "Error": "not acceptable elastic IP"}).Debug("not acceptable elastic IP")
 			continue
 		}
-		if ip.Plen() != 32 && ip.Plen() != 56 && ip.Plen() != 64 {
-			log.WithFields(log.Fields{"Topic": "Helper", "Route": ip, "Error": "not accepted prefix length"}).Debug("not accepted prefix length")
+
+		// ignore loopback IPs
+		if ip.IP.IsLoopback() {
+			log.WithFields(log.Fields{"Topic": "Helper", "Route": ip, "Warn": "not acceptable elastic IP"}).
+				Trace("ignoring loopback IPs")
 			continue
 		}
-		ips = append(ips, *ip)
+
+		// for ipv4 only a /32 is acceptable
+		if ip.IP.To4() != nil && ip.Plen() != 32 {
+			log.WithFields(log.Fields{"Topic": "Helper", "Route": ip, "Warn": "not accepted prefix length"}).
+				Warn("not accepted prefix length")
+			continue
+		}
+
+		// for ipv6 lets find the greater subnet we're part of, make it a /64 (or if asked a /56) and advertise that
+		if ip.IP.To4() == nil && (ip.Plen() != 64 || ip.Plen() != 56) {
+			log.WithFields(log.Fields{"Topic": "Helper", "Route": ip, "Warn": "fixing prefix length"}).
+				Warnf("fixing prefix lenth length to %s", sendMask)
+			ip.Mask = sendMask
+			_, ipNew, err := net.ParseCIDR(ip.String())
+			if err != nil {
+				log.WithFields(log.Fields{"Topic": "Helper", "Route": ip, "Error": "invalid IP"}).
+					Warnf("unable to supernet")
+				continue
+			}
+			ip = &IPNet{
+				IP:   ipNew.IP,
+				Mask: ipNew.Mask,
+			}
+		}
+
+		ips[ip.String()] = ip
 		log.WithFields(log.Fields{"Topic": "Helper", "Route": ip}).Debug("handling prefix")
 	}
-	if len(ips) == 0 {
+
+	var uniqIPs []IPNet
+	for _, ip := range ips {
+		uniqIPs = append(uniqIPs, *ip)
+	}
+
+	if len(uniqIPs) == 0 {
 		return nil, fmt.Errorf("didn't find any configured elastic IPs")
 	}
 
-	return ips, nil
+	return uniqIPs, nil
 }

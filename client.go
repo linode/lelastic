@@ -3,21 +3,23 @@ package main
 import (
 	"context"
 	"fmt"
+	"sync"
+
 	api "github.com/osrg/gobgp/api"
 	"github.com/osrg/gobgp/pkg/server"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
-	"sync"
 )
 
 type Client struct {
 	c         *server.BgpServer
 	ips       *[]IPNet
+	ipv6Plen  int
 	community string
 	wg        *sync.WaitGroup
 }
 
-func NewClient(c string) (*Client, error) {
+func NewClient(c string, send56 bool) (*Client, error) {
 	maxSize := 256 << 20
 	grpcOpts := []grpc.ServerOption{grpc.MaxRecvMsgSize(maxSize), grpc.MaxSendMsgSize(maxSize)}
 
@@ -38,7 +40,12 @@ func NewClient(c string) (*Client, error) {
 		return nil, err
 	}
 
-	ips, err := getIPs()
+	v6Mask := 64
+	if send56 {
+		v6Mask = 56
+	}
+
+	ips, err := getIPs(v6Mask)
 	if err != nil {
 		return nil, err
 	}
@@ -46,6 +53,7 @@ func NewClient(c string) (*Client, error) {
 	return &Client{
 		c:         cl,
 		ips:       &ips,
+		ipv6Plen:  64,
 		community: c,
 		wg:        wg,
 	}, nil
