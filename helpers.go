@@ -111,6 +111,7 @@ func getPath(p IPNet, nh string, myCom string) (*api.Path, error) {
 	}, nil
 }
 
+//get all local IPs elegible to be elastic IP
 func getIPs(v6Mask int) ([]IPNet, error) {
 	// addrs, err := net.InterfaceAddrs()
 	lo, err := net.InterfaceByName("lo")

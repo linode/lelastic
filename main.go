@@ -87,7 +87,7 @@ func main() {
 		// log.WithFields(log.Fields{"Topic": "Neighbor", "Neighbor": rs}).Info("added neighbor")
 	}
 
-	if err := c.addRoutes(); err != nil {
+	if err := c.AddRoutes(); err != nil {
 		log.WithFields(log.Fields{"Topic": "IPs"}).Fatal("failed adding IP advertisements: ", err)
 	}
 

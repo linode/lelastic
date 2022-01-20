@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc"
 )
 
+// Client is the client
 type Client struct {
 	c         *server.BgpServer
 	ips       *[]IPNet
@@ -19,6 +20,7 @@ type Client struct {
 	wg        *sync.WaitGroup
 }
 
+// NewClient instantiates a new client connection
 func NewClient(c string, send56 bool) (*Client, error) {
 	maxSize := 256 << 20
 	grpcOpts := []grpc.ServerOption{grpc.MaxRecvMsgSize(maxSize), grpc.MaxSendMsgSize(maxSize)}
@@ -59,6 +61,7 @@ func NewClient(c string, send56 bool) (*Client, error) {
 	}, nil
 }
 
+// AddRs adds route-server peerings to the bgp session
 func (c *Client) AddRs(rs string) error {
 	n := &api.Peer{
 		ApplyPolicy: &api.ApplyPolicy{
@@ -120,14 +123,14 @@ func (c *Client) AddRs(rs string) error {
 	return nil
 }
 
-// add a static route (or null route)
-func (cl *Client) AddStaticRoute(nh string, p IPNet, c string) error {
-	path, err := getPath(p, nh, c)
+// AddStaticRoute adds a static route in gobgp incl some BGP attributes for export
+func (c *Client) AddStaticRoute(nh string, p IPNet, cm string) error {
+	path, err := getPath(p, nh, cm)
 	if err != nil {
 		return fmt.Errorf("unable to compile path pointer: %w", err)
 	}
 
-	_, err = cl.c.AddPath(context.Background(), &api.AddPathRequest{
+	_, err = c.c.AddPath(context.Background(), &api.AddPathRequest{
 		Path: path,
 	})
 	if err != nil {
@@ -137,7 +140,8 @@ func (cl *Client) AddStaticRoute(nh string, p IPNet, c string) error {
 	return nil
 }
 
-func (c *Client) addRoutes() error {
+// AddRoutes adds a static route for all IPs monitored
+func (c *Client) AddRoutes() error {
 	for _, ip := range *c.ips {
 		if err := c.AddStaticRoute("", ip, c.community); err != nil {
 			return err

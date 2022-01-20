@@ -8,7 +8,7 @@ it does not need any configuration dependencies or advanced bgp skills
 a few assumptions are made by this tool:
 - your elastic IP needs to be configured on "lo" interface
 - for ipv4 you need to configure the IP as a /32 tied to the loopback interface
-- for ipv6 you can use any IP out of your /64 or /56 and of any subnet size as a loopback IP. if you want to announce your subnet as a /56 you need to toggle the flag `-send56`
+- for ipv6 you can use any IP out of your /64 or /56 and of any subnet size as a loopback IP. if you want to announce your subnet as a /56 you need to toggle the flag `-send56` otherwise it will default to announcing a /64
 
 ### install:
 ```
