@@ -33,7 +33,7 @@ Usage of ./lelastic:
   -secondary
         advertise as secondary
   -send56
-        Advertise ipv6 as /56 subnet
+        Advertise ipv6 as /56 subnet (defaults to /64)
 ```
 
 

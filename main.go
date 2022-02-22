@@ -22,7 +22,7 @@ func main() {
 	loglevel := flag.String("loglevel", "info", "set log level: trace, debug, info or warn")
 	logjson := flag.Bool("logjson", false, "set log format to json")
 	dcid := flag.Int("dcid", 0, "dcid for your DC")
-	send56 := flag.Bool("send56", false, "Advertise ipv6 as /56 subnet")
+	send56 := flag.Bool("send56", false, "Advertise ipv6 as /56 subnet (defaults to /64)")
 
 	flag.Parse()
 
