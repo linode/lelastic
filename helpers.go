@@ -150,10 +150,12 @@ func getIPs(v6Mask int) ([]IPNet, error) {
 		}
 
 		// for ipv6 lets find the greater subnet we're part of, make it a /64 (or if asked a /56) and advertise that
-		if ip.IP.To4() == nil && (ip.Plen() != 64 || ip.Plen() != 56) {
-			log.WithFields(log.Fields{"Topic": "Helper", "Route": ip, "Warn": "fixing prefix length"}).
-				Warnf("fixing prefix lenth length to %s", sendMask)
-			ip.Mask = sendMask
+		if ip.IP.To4() == nil {
+			if ip.Plen() != 64 && ip.Plen() != 56 {
+				log.WithFields(log.Fields{"Topic": "Helper", "Route": ip, "Warn": "fixing prefix length"}).
+					Warnf("fixing prefix lenth length to %s", sendMask)
+				ip.Mask = sendMask
+			}
 			_, ipNew, err := net.ParseCIDR(ip.String())
 			if err != nil {
 				log.WithFields(log.Fields{"Topic": "Helper", "Route": ip, "Error": "invalid IP"}).

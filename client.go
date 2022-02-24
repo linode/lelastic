@@ -146,7 +146,7 @@ func (c *Client) AddRoutes() error {
 		if err := c.AddStaticRoute("", ip, c.community); err != nil {
 			return err
 		}
-		log.WithFields(log.Fields{"Topic": "Route", "Route": ip, "Community": c}).Info("added route")
+		log.WithFields(log.Fields{"Topic": "Route", "Route": ip, "Community": c.community}).Info("added route")
 	}
 	return nil
 }
