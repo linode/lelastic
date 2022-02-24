@@ -153,7 +153,7 @@ func getIPs(v6Mask int) ([]IPNet, error) {
 		if ip.IP.To4() == nil {
 			if ip.Plen() != 64 && ip.Plen() != 56 {
 				log.WithFields(log.Fields{"Topic": "Helper", "Route": ip, "Warn": "fixing prefix length"}).
-					Warnf("fixing prefix lenth length to %s", sendMask)
+					Warnf("fixing prefix lenth length to /%d", v6Mask)
 				ip.Mask = sendMask
 			}
 			_, ipNew, err := net.ParseCIDR(ip.String())
