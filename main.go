@@ -23,6 +23,11 @@ func main() {
 	logjson := flag.Bool("logjson", false, "set log format to json")
 	dcid := flag.Int("dcid", 0, "dcid for your DC")
 	send56 := flag.Bool("send56", false, "Advertise ipv6 as /56 subnet (defaults to /64)")
+	allIfs := flag.Bool(
+		"allifs",
+		false,
+		"Consider all interfaces when detecting elastic IP candidates (not just loopback)",
+	)
 
 	flag.Parse()
 
@@ -72,7 +77,18 @@ func main() {
 		log.WithFields(log.Fields{"Topic": "Main"}).Fatal("use either primary or secondary flag")
 	}
 
-	c, err := NewClient(myCommunity, *send56)
+	//ips
+	v6Mask := 64
+	if *send56 {
+		v6Mask = 56
+	}
+
+	ips, err := getIPs(v6Mask, *allIfs)
+	if err != nil {
+		log.WithFields(log.Fields{"Topic": "Main"}).Fatalf("unable to detect IPs: %v", err)
+	}
+
+	c, err := NewClient(myCommunity, ips)
 	if err != nil {
 		log.WithFields(log.Fields{"Topic": "Main"}).Fatal("failed to initiate the client: ", err)
 	}

@@ -21,7 +21,7 @@ type Client struct {
 }
 
 // NewClient instantiates a new client connection
-func NewClient(c string, send56 bool) (*Client, error) {
+func NewClient(c string, ips *[]IPNet) (*Client, error) {
 	maxSize := 256 << 20
 	grpcOpts := []grpc.ServerOption{grpc.MaxRecvMsgSize(maxSize), grpc.MaxSendMsgSize(maxSize)}
 
@@ -42,19 +42,9 @@ func NewClient(c string, send56 bool) (*Client, error) {
 		return nil, err
 	}
 
-	v6Mask := 64
-	if send56 {
-		v6Mask = 56
-	}
-
-	ips, err := getIPs(v6Mask)
-	if err != nil {
-		return nil, err
-	}
-
 	return &Client{
 		c:         cl,
-		ips:       &ips,
+		ips:       ips,
 		ipv6Plen:  64,
 		community: c,
 		wg:        wg,

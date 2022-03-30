@@ -112,13 +112,19 @@ func getPath(p IPNet, nh string, myCom string) (*api.Path, error) {
 }
 
 //get all local IPs elegible to be elastic IP
-func getIPs(v6Mask int) ([]IPNet, error) {
-	// addrs, err := net.InterfaceAddrs()
-	lo, err := net.InterfaceByName("lo")
-	if err != nil {
-		return nil, err
+func getIPs(v6Mask int, allIfs bool) (*[]IPNet, error) {
+	var addrs []net.Addr
+	var err error
+
+	if allIfs {
+		addrs, err = net.InterfaceAddrs()
+	} else {
+		lo, err := net.InterfaceByName("lo")
+		if err != nil {
+			return nil, err
+		}
+		addrs, err = lo.Addrs()
 	}
-	addrs, err := lo.Addrs()
 	if err != nil {
 		return nil, err
 	}
@@ -139,6 +145,13 @@ func getIPs(v6Mask int) ([]IPNet, error) {
 		if ip.IP.IsLoopback() {
 			log.WithFields(log.Fields{"Topic": "Helper", "Route": ip, "Warn": "not acceptable elastic IP"}).
 				Trace("ignoring loopback IPs")
+			continue
+		}
+
+		// ignore link local IPs
+		if ip.IP.IsLinkLocalUnicast() {
+			log.WithFields(log.Fields{"Topic": "Helper", "Route": ip, "Warn": "not acceptable elastic IP"}).
+				Trace("ignoring linklocal IPs")
 			continue
 		}
 
@@ -181,5 +194,5 @@ func getIPs(v6Mask int) ([]IPNet, error) {
 		return nil, fmt.Errorf("didn't find any configured elastic IPs")
 	}
 
-	return uniqIPs, nil
+	return &uniqIPs, nil
 }
