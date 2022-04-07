@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sync"
 
-	api "github.com/osrg/gobgp/api"
-	"github.com/osrg/gobgp/pkg/server"
+	api "github.com/osrg/gobgp/v3/api"
+	"github.com/osrg/gobgp/v3/pkg/server"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
@@ -34,7 +34,7 @@ func NewClient(c string, ips *[]IPNet) (*Client, error) {
 
 	if err := cl.StartBgp(context.Background(), &api.StartBgpRequest{
 		Global: &api.Global{
-			As:         myAsn,
+			Asn:        myAsn,
 			RouterId:   id,
 			ListenPort: -1,
 		},
@@ -68,7 +68,7 @@ func (c *Client) AddRs(rs string) error {
 		},
 		Conf: &api.PeerConf{
 			NeighborAddress: rs,
-			PeerAs:          rsAsn,
+			PeerAsn:         rsAsn,
 			Description:     "route server",
 		},
 		EbgpMultihop: &api.EbgpMultihop{
