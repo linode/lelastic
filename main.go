@@ -79,9 +79,9 @@ func main() {
 		v6Mask = 56
 	}
 
-	ips, err := getIPs(v6Mask, *allIfs)
+	ips, err := getIPs(v6Mask, *allIfs, flag.Args())
 	if err != nil {
-		log.WithFields(log.Fields{"Topic": "Main"}).Fatalf("Unable to detect IPs: %v", err)
+		log.WithFields(log.Fields{"Topic": "Main"}).Fatalf("No IPs: %v", err)
 	}
 
 	c, err := NewClient(myCommunity, ips)
