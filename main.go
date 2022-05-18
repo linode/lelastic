@@ -17,7 +17,7 @@ const (
 )
 
 func main() {
-	primary := flag.Bool("primary", false, "Advertise as primary")
+	primary := flag.Bool("primary", false, "Advertise as primary (default if -secondary not specified)")
 	secondary := flag.Bool("secondary", false, "Advertise as secondary")
 	loglevel := flag.String("loglevel", "info", "Set log level: trace, debug, info or warn")
 	logjson := flag.Bool("logjson", false, "Set log format to json")
@@ -46,10 +46,12 @@ func main() {
 		log.WithFields(log.Fields{"Topic": "Main"}).Fatal("Required -dcid not provided")
 	}
 
-	if !*primary && !*secondary {
+	if *primary && *secondary {
 		flag.Usage()
-		log.WithFields(log.Fields{"Topic": "Main"}).Fatal("Use either -primary or -secondary flag")
+		log.WithFields(log.Fields{"Topic": "Main"}).Fatal("Use either -primary or -secondary flag, not both!")
 	}
+
+
 
 	switch *loglevel {
 	case "trace":
@@ -66,15 +68,9 @@ func main() {
 		log.SetLevel(log.InfoLevel)
 	}
 
-	var myCommunity string
-
-	switch {
-	case *primary:
-		myCommunity = communityPrimary
-	case *secondary:
+	myCommunity := communityPrimary;
+	if *secondary {
 		myCommunity = communitySecondary
-	default:
-		log.WithFields(log.Fields{"Topic": "Main"}).Fatal("use either primary or secondary flag")
 	}
 
 	//ips
