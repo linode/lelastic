@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	apiListen          = ":50051"
+	apiListen          = "127.0.0.1:50051"
 	myAsn              = 65001
 	rsAsn              = 65000
 	id                 = "10.0.0.1"
