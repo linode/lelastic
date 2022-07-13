@@ -9,6 +9,11 @@ it does not need any configuration dependencies or advanced bgp skills
 - the sole purpose of this tool is to get you up and running as fast and easy as possible
 - it does not support any fancy or advanced bgp trickery
 
+### notes
+- lelastic is basically a wrapper for gobgp (https://github.com/osrg/gobgp)
+- lelastic when started up exposes the gobgp API, just like gobgp does on port 50051
+	- since version 0.0.6 this is bound to localhost only. prior to this it was actually exposed
+
 ### how it works
 a few assumptions are made by this tool:
 - your elastic IP needs to be configured on "lo" interface
@@ -18,7 +23,7 @@ a few assumptions are made by this tool:
 
 ### install:
 ```
-version=v0.0.3
+version=v0.0.6
 curl -LO https://github.com/linode/lelastic/releases/download/$version/lelastic.gz
 gunzip lelastic.gz
 chmod 755 lelastic
