@@ -30,6 +30,17 @@ chmod 755 lelastic
 mv lelastic /usr/local/bin/
 ```
 
+#### containerizing:
+
+You can containzerize lelastic using Docker and push it to a registry. Use this approach if you'd like to use lelastic in a kubernetes cluster.
+
+* First, be on a Linux machine or a Linode.
+* Build the container: `cd lelastic && docker build -t lelastic .`
+* Tag the container: `docker tag lelastic your-name-here/lelastic:latest`
+* Optionally run on your machine to test it first: `docker run -dp 3000:3000 lelastic` 
+* Push it to a registry for your kubernetes cluster to pull from later: `docker push your-name-here/lelastic:latest`
+
+
 ### usage:
 ```
 Usage of ./lelastic:
