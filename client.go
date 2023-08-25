@@ -42,6 +42,14 @@ func NewClient(c string, ips *[]IPNet) (*Client, error) {
 		return nil, err
 	}
 
+	if err := cl.WatchEvent(context.Background(), &api.WatchEventRequest{Peer: &api.WatchEventRequest_Peer{}}, func(r *api.WatchEventResponse) {
+		if p := r.GetPeer(); p != nil && p.Type == api.WatchEventResponse_PeerEvent_STATE {
+			log.Println(p)
+		}
+	}); err != nil {
+		return nil, err
+	}
+
 	return &Client{
 		c:         cl,
 		ips:       ips,
