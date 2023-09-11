@@ -27,8 +27,8 @@ func (i IPNet) Plen() uint32 {
 }
 
 // IPNetFromAddr reads net.Addr and converts it to IPNet
-func IPNetFromAddr(a net.Addr) (*IPNet, error) {
-	_, p, err := net.ParseCIDR(a.String())
+func IPNetFromString(a string) (*IPNet, error) {
+	_, p, err := net.ParseCIDR(a)
 	if err != nil {
 		return nil, err
 	}
@@ -37,6 +37,10 @@ func IPNetFromAddr(a net.Addr) (*IPNet, error) {
 		IP:   p.IP,
 		Mask: p.Mask,
 	}, nil
+}
+
+func IPNetFromAddr(a net.Addr) (*IPNet, error) {
+	return IPNetFromString(a.String())
 }
 
 // parse bgp community from string to uint32
@@ -111,55 +115,26 @@ func getPath(p IPNet, nh string, myCom string) (*api.Path, error) {
 	}, nil
 }
 
-//get all local IPs elegible to be elastic IP
-func getIPs(v6Mask int, allIfs bool) (*[]IPNet, error) {
-	var addrs []net.Addr
-	var err error
-
-	if allIfs {
-		addrs, err = net.InterfaceAddrs()
-	} else {
-		lo, err := net.InterfaceByName("lo")
-		if err != nil {
-			return nil, err
-		}
-		addrs, err = lo.Addrs()
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	sendMask := net.CIDRMask(v6Mask, 128)
-
-	//  var ips []IPNet
-	ips := make(map[string]*IPNet)
-
-	for _, addr := range addrs {
-		ip, err := IPNetFromAddr(addr)
-		if err != nil {
-			log.WithFields(log.Fields{"Topic": "Helper", "Route": addr, "Error": "invalid IP"}).Warn("invalid IP")
-			continue
-		}
-
+func validateIP(ip *IPNet, v6Mask int, sendMask net.IPMask) (*IPNet) {
 		// ignore loopback IPs
 		if ip.IP.IsLoopback() {
 			log.WithFields(log.Fields{"Topic": "Helper", "Route": ip, "Warn": "not acceptable elastic IP"}).
 				Trace("ignoring loopback IPs")
-			continue
+			return nil
 		}
 
 		// ignore link local IPs
 		if ip.IP.IsLinkLocalUnicast() {
 			log.WithFields(log.Fields{"Topic": "Helper", "Route": ip, "Warn": "not acceptable elastic IP"}).
 				Trace("ignoring linklocal IPs")
-			continue
+			return nil
 		}
 
 		// for ipv4 only a /32 is acceptable
 		if ip.IP.To4() != nil && ip.Plen() != 32 {
 			log.WithFields(log.Fields{"Topic": "Helper", "Route": ip, "Warn": "not accepted prefix length"}).
 				Warn("not accepted prefix length")
-			continue
+			return nil
 		}
 
 		// for ipv6 lets find the greater subnet we're part of, make it a /64 (or if asked a /56) and advertise that
@@ -173,16 +148,67 @@ func getIPs(v6Mask int, allIfs bool) (*[]IPNet, error) {
 			if err != nil {
 				log.WithFields(log.Fields{"Topic": "Helper", "Route": ip, "Error": "invalid IP"}).
 					Warnf("unable to supernet")
-				continue
+				return nil
 			}
-			ip = &IPNet{
+			return &IPNet{
 				IP:   ipNew.IP,
 				Mask: ipNew.Mask,
 			}
 		}
 
-		ips[ip.String()] = ip
-		log.WithFields(log.Fields{"Topic": "Helper", "Route": ip}).Debug("handling prefix")
+		return ip
+}
+
+//get all local IPs elegible to be elastic IP
+func getIPs(v6Mask int, allIfs bool, manualIPs []string) (*[]IPNet, error) {
+	var addrs []net.Addr
+	var err error
+	ips := make(map[string]*IPNet)
+
+	sendMask := net.CIDRMask(v6Mask, 128)
+
+	// Manually provided IPs
+	for _, a := range manualIPs {
+		ip, err := IPNetFromString(a)
+		if err != nil {
+			log.WithFields(log.Fields{"Topic": "Main", "Route": a, "Error": "invalid IP"}).Warnf("Invalid IP: %v", err)
+			continue
+		}
+		ip = validateIP(ip, v6Mask, sendMask)
+		if ip != nil {
+		  ips[ip.String()] = ip
+		  log.WithFields(log.Fields{"Topic": "Helper", "Route": ip}).Debug("handling prefix (manual)")
+		}
+	}
+
+
+	if allIfs {
+		addrs, err = net.InterfaceAddrs()
+	} else {
+		lo, err := net.InterfaceByName("lo")
+		if err != nil {
+			log.WithFields(log.Fields{"Topic": "Helper"}).Warnf("Cannot find 'lo' interface: %v", err)
+		} else {
+			addrs, err = lo.Addrs()
+		}
+	}
+	if err != nil {
+		log.WithFields(log.Fields{"Topic": "Helper"}).Warnf("Cannot load interface addresses: %v", err)
+	}
+
+
+	for _, addr := range addrs {
+		ip, err := IPNetFromAddr(addr)
+		if err != nil {
+			log.WithFields(log.Fields{"Topic": "Helper", "Route": addr, "Error": "invalid IP"}).Warnf("Invalid IP: %v", err)
+			continue
+		}
+
+		ip = validateIP(ip, v6Mask, sendMask)
+		if ip != nil {
+			ips[ip.String()] = ip
+			log.WithFields(log.Fields{"Topic": "Helper", "Route": ip}).Debug("handling prefix")
+		}
 	}
 
 	var uniqIPs []IPNet
@@ -191,7 +217,7 @@ func getIPs(v6Mask int, allIfs bool) (*[]IPNet, error) {
 	}
 
 	if len(uniqIPs) == 0 {
-		return nil, fmt.Errorf("didn't find any configured elastic IPs")
+		return nil, fmt.Errorf("Didn't find any elastic IPs")
 	}
 
 	return &uniqIPs, nil
