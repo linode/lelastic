@@ -1,0 +1,51 @@
+lelasticDeployments:
+  primary:
+    name: lelastic-primary
+    primaryOrSecondaryArg: primary
+    affinityConfig:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kpp-node-id
+                operator: In
+                values:
+                  - server-0
+    tolerations:
+      - effect: NoSchedule
+        operator: Exists
+      - effect: NoExecute
+        operator: Exists
+  secondary:
+    name: lelastic-secondary
+    primaryOrSecondaryArg: secondary
+    affinityConfig:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kpp-node-id
+                operator: In
+                values:
+                  - server-1
+                  - server-2
+    tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+        effect: NoExecute
+      - key: node.kubernetes.io/not-ready
+        operator: Exists
+        effect: NoExecute
+        tolerationSeconds: 30
+      - key: node.kubernetes.io/unreachable
+        operator: Exists
+        effect: NoExecute
+        tolerationSeconds: 30
+namespace: kube-system
+regionId: "6"
+image:
+  registry: kpp-private-registry.akamai-kpp.com
+  repository: cns/kpp/lelastic
+  tag: b4fc469d53381625d52db238f75ea54e1e9c174c
