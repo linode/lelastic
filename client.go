@@ -141,10 +141,10 @@ func (c *Client) AddStaticRoute(nh string, p IPNet, cm string) error {
 // AddRoutes adds a static route for all IPs monitored
 func (c *Client) AddRoutes() error {
 	for _, ip := range *c.ips {
-		if err := c.AddStaticRoute("", ip, c.community); err != nil {
+		if err := c.AddStaticRoute("", ip, ip.community); err != nil {
 			return err
 		}
-		log.WithFields(log.Fields{"Topic": "Route", "Route": ip, "Community": c.community}).Info("added route")
+		log.WithFields(log.Fields{"Topic": "Route", "Route": ip, "Community": ip.community}).Info("added route")
 	}
 	return nil
 }

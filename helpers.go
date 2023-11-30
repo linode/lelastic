@@ -13,16 +13,19 @@ import (
 )
 
 // IPNet is a extension of net.IPNet with some addons
-type IPNet net.IPNet
+type IPNet struct {
+	ip        net.IPNet
+	community string
+}
 
 func (i IPNet) String() string {
-	j, _ := i.Mask.Size()
-	return fmt.Sprintf("%v/%v", i.IP, j)
+	j, _ := i.ip.Mask.Size()
+	return fmt.Sprintf("%v/%v", i.ip.IP, j)
 }
 
 // Plen returns the prefix len as uint
 func (i IPNet) Plen() uint32 {
-	j, _ := i.Mask.Size()
+	j, _ := i.ip.Mask.Size()
 	return uint32(j)
 }
 
@@ -34,8 +37,23 @@ func IPNetFromAddr(a net.Addr) (*IPNet, error) {
 	}
 
 	return &IPNet{
-		IP:   p.IP,
-		Mask: p.Mask,
+		ip: *p,
+	}, nil
+}
+
+// IPNetFromString converts a string to an IPNet
+// If the supplied string does not have a CIDR notation, it is assumed to be /32
+func IPNetFromString(s string) (*IPNet, error) {
+	if !strings.Contains(s, "/") {
+		s = fmt.Sprintf("%s/32", s)
+	}
+	_, p, err := net.ParseCIDR(s)
+	if err != nil {
+		return nil, err
+	}
+
+	return &IPNet{
+		ip: *p,
 	}, nil
 }
 
@@ -70,12 +88,12 @@ func getPath(p IPNet, nh string, myCom string) (*api.Path, error) {
 	}
 
 	nlri, _ := ptypes.MarshalAny(&api.IPAddressPrefix{
-		Prefix:    p.IP.String(),
+		Prefix:    p.ip.IP.String(),
 		PrefixLen: p.Plen(),
 	})
 
 	var family *api.Family
-	if p.IP.To4() == nil {
+	if p.ip.IP.To4() == nil {
 		family = &api.Family{
 			Afi:  api.Family_AFI_IP6,
 			Safi: api.Family_SAFI_UNICAST,
@@ -111,7 +129,7 @@ func getPath(p IPNet, nh string, myCom string) (*api.Path, error) {
 	}, nil
 }
 
-//get all local IPs elegible to be elastic IP
+// get all local IPs elegible to be elastic IP
 func getIPs(v6Mask int, allIfs bool) (*[]IPNet, error) {
 	var addrs []net.Addr
 	var err error
@@ -135,54 +153,56 @@ func getIPs(v6Mask int, allIfs bool) (*[]IPNet, error) {
 	ips := make(map[string]*IPNet)
 
 	for _, addr := range addrs {
-		ip, err := IPNetFromAddr(addr)
+		p, err := IPNetFromAddr(addr)
 		if err != nil {
 			log.WithFields(log.Fields{"Topic": "Helper", "Route": addr, "Error": "invalid IP"}).Warn("invalid IP")
 			continue
 		}
 
 		// ignore loopback IPs
-		if ip.IP.IsLoopback() {
-			log.WithFields(log.Fields{"Topic": "Helper", "Route": ip, "Warn": "not acceptable elastic IP"}).
+		if p.ip.IP.IsLoopback() {
+			log.WithFields(log.Fields{"Topic": "Helper", "Route": p, "Warn": "not acceptable elastic IP"}).
 				Trace("ignoring loopback IPs")
 			continue
 		}
 
 		// ignore link local IPs
-		if ip.IP.IsLinkLocalUnicast() {
-			log.WithFields(log.Fields{"Topic": "Helper", "Route": ip, "Warn": "not acceptable elastic IP"}).
+		if p.ip.IP.IsLinkLocalUnicast() {
+			log.WithFields(log.Fields{"Topic": "Helper", "Route": p, "Warn": "not acceptable elastic IP"}).
 				Trace("ignoring linklocal IPs")
 			continue
 		}
 
 		// for ipv4 only a /32 is acceptable
-		if ip.IP.To4() != nil && ip.Plen() != 32 {
-			log.WithFields(log.Fields{"Topic": "Helper", "Route": ip, "Warn": "not accepted prefix length"}).
+		if p.ip.IP.To4() != nil && p.Plen() != 32 {
+			log.WithFields(log.Fields{"Topic": "Helper", "Route": p, "Warn": "not accepted prefix length"}).
 				Warn("not accepted prefix length")
 			continue
 		}
 
 		// for ipv6 lets find the greater subnet we're part of, make it a /64 (or if asked a /56) and advertise that
-		if ip.IP.To4() == nil {
-			if ip.Plen() != 64 && ip.Plen() != 56 {
-				log.WithFields(log.Fields{"Topic": "Helper", "Route": ip, "Warn": "fixing prefix length"}).
+		if p.ip.IP.To4() == nil {
+			if p.Plen() != 64 && p.Plen() != 56 {
+				log.WithFields(log.Fields{"Topic": "Helper", "Route": p, "Warn": "fixing prefix length"}).
 					Warnf("fixing prefix lenth length to /%d", v6Mask)
-				ip.Mask = sendMask
+				p.ip.Mask = sendMask
 			}
-			_, ipNew, err := net.ParseCIDR(ip.String())
+			_, ipNew, err := net.ParseCIDR(p.String())
 			if err != nil {
-				log.WithFields(log.Fields{"Topic": "Helper", "Route": ip, "Error": "invalid IP"}).
+				log.WithFields(log.Fields{"Topic": "Helper", "Route": p, "Error": "invalid IP"}).
 					Warnf("unable to supernet")
 				continue
 			}
-			ip = &IPNet{
-				IP:   ipNew.IP,
-				Mask: ipNew.Mask,
+			p = &IPNet{
+				ip: net.IPNet{
+					IP:   ipNew.IP,
+					Mask: ipNew.Mask,
+				},
 			}
 		}
 
-		ips[ip.String()] = ip
-		log.WithFields(log.Fields{"Topic": "Helper", "Route": ip}).Debug("handling prefix")
+		ips[p.String()] = p
+		log.WithFields(log.Fields{"Topic": "Helper", "Route": p}).Debug("handling prefix")
 	}
 
 	var uniqIPs []IPNet
