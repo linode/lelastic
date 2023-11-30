@@ -13,15 +13,14 @@ import (
 
 // Client is the client
 type Client struct {
-	c         *server.BgpServer
-	ips       *[]IPNet
-	ipv6Plen  int
-	community string
-	wg        *sync.WaitGroup
+	c        *server.BgpServer
+	ips      *[]IPNet
+	ipv6Plen int
+	wg       *sync.WaitGroup
 }
 
 // NewClient instantiates a new client connection
-func NewClient(c string, ips *[]IPNet) (*Client, error) {
+func NewClient(ips *[]IPNet) (*Client, error) {
 	maxSize := 256 << 20
 	grpcOpts := []grpc.ServerOption{grpc.MaxRecvMsgSize(maxSize), grpc.MaxSendMsgSize(maxSize)}
 
@@ -51,11 +50,10 @@ func NewClient(c string, ips *[]IPNet) (*Client, error) {
 	}
 
 	return &Client{
-		c:         cl,
-		ips:       ips,
-		ipv6Plen:  64,
-		community: c,
-		wg:        wg,
+		c:        cl,
+		ips:      ips,
+		ipv6Plen: 64,
+		wg:       wg,
 	}, nil
 }
 

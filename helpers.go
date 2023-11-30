@@ -41,22 +41,6 @@ func IPNetFromAddr(a net.Addr) (*IPNet, error) {
 	}, nil
 }
 
-// IPNetFromString converts a string to an IPNet
-// If the supplied string does not have a CIDR notation, it is assumed to be /32
-func IPNetFromString(s string) (*IPNet, error) {
-	if !strings.Contains(s, "/") {
-		s = fmt.Sprintf("%s/32", s)
-	}
-	_, p, err := net.ParseCIDR(s)
-	if err != nil {
-		return nil, err
-	}
-
-	return &IPNet{
-		ip: *p,
-	}, nil
-}
-
 // parse bgp community from string to uint32
 func parseCommunity(c string) (uint32, error) {
 	s := strings.SplitN(c, ":", 2)
