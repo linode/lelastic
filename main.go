@@ -14,6 +14,8 @@ const (
 	id                 = "10.0.0.1"
 	communityPrimary   = "65000:1"
 	communitySecondary = "65000:2"
+	ipv6InfraPrefix    = "2600:3c0f"
+	ipv6InfraPrefixLab = "2600:3c1f"
 )
 
 func main() {
@@ -28,6 +30,7 @@ func main() {
 		false,
 		"Consider all interfaces when detecting elastic IP candidates (not just loopback)",
 	)
+	rsPrefix := flag.String("infp", ipv6InfraPrefix, "RS IPv6 infra prefix for your DC (default is 2600:3c0f)")
 
 	flag.Parse()
 
@@ -66,6 +69,9 @@ func main() {
 		log.SetLevel(log.InfoLevel)
 	}
 
+	if *rsPrefix != ipv6InfraPrefix && *rsPrefix != ipv6InfraPrefixLab {
+		log.WithFields(log.Fields{"Topic": "Main"}).Fatalf("Invalid prefix: %s. Must be one of %s or %s", *rsPrefix, ipv6InfraPrefix, ipv6InfraPrefixLab)
+	}
 	var myCommunity string
 
 	switch {
@@ -96,7 +102,7 @@ func main() {
 	c.wg.Add(1)
 
 	for i := 1; i <= 4; i++ {
-		rs := fmt.Sprintf("2600:3c0f:%d:34::%d", *dcid, i)
+		rs := fmt.Sprintf("%s:%d:34::%d", *rsPrefix, *dcid, i)
 		if err := c.AddRs(rs); err != nil {
 			log.WithFields(log.Fields{"Topic": "Neighbor", "Neighbor": rs}).Fatal("failed adding neighbor")
 		}
