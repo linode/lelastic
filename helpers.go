@@ -6,38 +6,12 @@ import (
 	"strconv"
 	"strings"
 
+	"bits.linode.com/netops/lelastic/pkg/helper"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	api "github.com/osrg/gobgp/v3/api"
 	log "github.com/sirupsen/logrus"
 )
-
-// IPNet is a extension of net.IPNet with some addons
-type IPNet net.IPNet
-
-func (i IPNet) String() string {
-	j, _ := i.Mask.Size()
-	return fmt.Sprintf("%v/%v", i.IP, j)
-}
-
-// Plen returns the prefix len as uint
-func (i IPNet) Plen() uint32 {
-	j, _ := i.Mask.Size()
-	return uint32(j)
-}
-
-// IPNetFromAddr reads net.Addr and converts it to IPNet
-func IPNetFromAddr(a net.Addr) (*IPNet, error) {
-	_, p, err := net.ParseCIDR(a.String())
-	if err != nil {
-		return nil, err
-	}
-
-	return &IPNet{
-		IP:   p.IP,
-		Mask: p.Mask,
-	}, nil
-}
 
 // parse bgp community from string to uint32
 func parseCommunity(c string) (uint32, error) {
@@ -57,7 +31,7 @@ func parseCommunity(c string) (uint32, error) {
 }
 
 // compile goBGP path type from prefix, next hop and bgp community
-func getPath(p IPNet, nh string, myCom string) (*api.Path, error) {
+func getPath(p helper.IPNet, nh string, myCom string) (*api.Path, error) {
 	// convert human readable community to uint32
 	c, err := parseCommunity(myCom)
 	if err != nil {
@@ -111,8 +85,8 @@ func getPath(p IPNet, nh string, myCom string) (*api.Path, error) {
 	}, nil
 }
 
-//get all local IPs elegible to be elastic IP
-func getIPs(v6Mask int, allIfs bool) (*[]IPNet, error) {
+// get all local IPs elegible to be elastic IP
+func getIPs(v6Mask int, allIfs bool) (*[]helper.IPNet, error) {
 	var addrs []net.Addr
 	var err error
 
@@ -131,11 +105,10 @@ func getIPs(v6Mask int, allIfs bool) (*[]IPNet, error) {
 
 	sendMask := net.CIDRMask(v6Mask, 128)
 
-	//  var ips []IPNet
-	ips := make(map[string]*IPNet)
+	ips := make(map[string]*helper.IPNet)
 
 	for _, addr := range addrs {
-		ip, err := IPNetFromAddr(addr)
+		ip, err := helper.IPNetFromAddr(addr)
 		if err != nil {
 			log.WithFields(log.Fields{"Topic": "Helper", "Route": addr, "Error": "invalid IP"}).Warn("invalid IP")
 			continue
@@ -175,7 +148,7 @@ func getIPs(v6Mask int, allIfs bool) (*[]IPNet, error) {
 					Warnf("unable to supernet")
 				continue
 			}
-			ip = &IPNet{
+			ip = &helper.IPNet{
 				IP:   ipNew.IP,
 				Mask: ipNew.Mask,
 			}
@@ -185,7 +158,7 @@ func getIPs(v6Mask int, allIfs bool) (*[]IPNet, error) {
 		log.WithFields(log.Fields{"Topic": "Helper", "Route": ip}).Debug("handling prefix")
 	}
 
-	var uniqIPs []IPNet
+	var uniqIPs []helper.IPNet
 	for _, ip := range ips {
 		uniqIPs = append(uniqIPs, *ip)
 	}
