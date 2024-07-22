@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	"bits.linode.com/netops/lelastic/pkg/helper"
 	api "github.com/osrg/gobgp/v3/api"
 	"github.com/osrg/gobgp/v3/pkg/server"
 	log "github.com/sirupsen/logrus"
@@ -14,14 +15,14 @@ import (
 // Client is the client
 type Client struct {
 	c         *server.BgpServer
-	ips       *[]IPNet
+	ips       *[]helper.IPNet
 	ipv6Plen  int
 	community string
 	wg        *sync.WaitGroup
 }
 
 // NewClient instantiates a new client connection
-func NewClient(c string, ips *[]IPNet) (*Client, error) {
+func NewClient(c string, ips *[]helper.IPNet) (*Client, error) {
 	maxSize := 256 << 20
 	grpcOpts := []grpc.ServerOption{grpc.MaxRecvMsgSize(maxSize), grpc.MaxSendMsgSize(maxSize)}
 
@@ -122,7 +123,7 @@ func (c *Client) AddRs(rs string) error {
 }
 
 // AddStaticRoute adds a static route in gobgp incl some BGP attributes for export
-func (c *Client) AddStaticRoute(nh string, p IPNet, cm string) error {
+func (c *Client) AddStaticRoute(nh string, p helper.IPNet, cm string) error {
 	path, err := getPath(p, nh, cm)
 	if err != nil {
 		return fmt.Errorf("unable to compile path pointer: %w", err)
