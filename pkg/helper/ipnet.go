@@ -25,6 +25,19 @@ func IPNetParse(s string) (*IPNet, error) {
 	return i, nil
 }
 
+// IPNetFromAddr reads net.Addr and converts it to IPNet
+func IPNetFromAddr(a net.Addr) (*IPNet, error) {
+	_, p, err := net.ParseCIDR(a.String())
+	if err != nil {
+		return nil, err
+	}
+
+	return &IPNet{
+		IP:   p.IP,
+		Mask: p.Mask,
+	}, nil
+}
+
 // Set parses a string into an IPNet. this is used for the flag interface
 func (i *IPNet) Set(v string) error {
 	ip, subnet, err := net.ParseCIDR(v)
@@ -153,17 +166,4 @@ func (i *IPNet) UnmarshalJSON(b []byte) error {
 // MarshalJSON interface for IPNet
 func (i *IPNet) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + i.String() + `"`), nil
-}
-
-// IPNetFromAddr reads net.Addr and converts it to IPNet
-func IPNetFromAddr(a net.Addr) (*IPNet, error) {
-	_, p, err := net.ParseCIDR(a.String())
-	if err != nil {
-		return nil, err
-	}
-
-	return &IPNet{
-		IP:   p.IP,
-		Mask: p.Mask,
-	}, nil
 }
