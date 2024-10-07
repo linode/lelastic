@@ -8,12 +8,13 @@ import (
 )
 
 const (
-	apiListen          = "127.0.0.1:50051"
-	myAsn              = 65001
-	rsAsn              = 65000
-	id                 = "10.0.0.1"
-	communityPrimary   = "65000:1"
-	communitySecondary = "65000:2"
+	apiListen              = "127.0.0.1:50051"
+	myAsn                  = 65001
+	rsAsn                  = 65000
+	id                     = "10.0.0.1"
+	communityPrimary       = "65000:1"
+	communitySecondary     = "65000:2"
+	defaultNeighborPattern = "2600:3c0f:%d:34::%d"
 )
 
 func main() {
@@ -28,6 +29,7 @@ func main() {
 		false,
 		"Consider all interfaces when detecting elastic IP candidates (not just loopback)",
 	)
+	neighborPattern := flag.String("neighborpattern", defaultNeighborPattern, "The pattern to use for generating neighbor addresses. Only use this when running lelastic outside of production Linode datacenters.")
 
 	flag.Parse()
 
@@ -43,7 +45,7 @@ func main() {
 
 	if *dcid <= 1 {
 		flag.Usage()
-		log.WithFields(log.Fields{"Topic": "Main"}).Fatal("dcid not provided, I need this info")
+		log.WithFields(log.Fields{"Topic": "Main"}).Fatal("dcid must be specified")
 	}
 
 	if !*primary && !*secondary {
@@ -96,7 +98,7 @@ func main() {
 	c.wg.Add(1)
 
 	for i := 1; i <= 4; i++ {
-		rs := fmt.Sprintf("2600:3c0f:%d:34::%d", *dcid, i)
+		var rs = fmt.Sprintf(*neighborPattern, *dcid, i)
 		if err := c.AddRs(rs); err != nil {
 			log.WithFields(log.Fields{"Topic": "Neighbor", "Neighbor": rs}).Fatal("failed adding neighbor")
 		}
