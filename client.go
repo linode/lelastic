@@ -13,15 +13,14 @@ import (
 
 // Client is the client
 type Client struct {
-	c         *server.BgpServer
-	ips       *[]IPNet
-	ipv6Plen  int
-	community string
-	wg        *sync.WaitGroup
+	c        *server.BgpServer
+	ips      *[]IPNet
+	ipv6Plen int
+	wg       *sync.WaitGroup
 }
 
 // NewClient instantiates a new client connection
-func NewClient(c string, ips *[]IPNet) (*Client, error) {
+func NewClient(ips *[]IPNet) (*Client, error) {
 	maxSize := 256 << 20
 	grpcOpts := []grpc.ServerOption{grpc.MaxRecvMsgSize(maxSize), grpc.MaxSendMsgSize(maxSize)}
 
@@ -51,11 +50,10 @@ func NewClient(c string, ips *[]IPNet) (*Client, error) {
 	}
 
 	return &Client{
-		c:         cl,
-		ips:       ips,
-		ipv6Plen:  64,
-		community: c,
-		wg:        wg,
+		c:        cl,
+		ips:      ips,
+		ipv6Plen: 64,
+		wg:       wg,
 	}, nil
 }
 
@@ -141,10 +139,10 @@ func (c *Client) AddStaticRoute(nh string, p IPNet, cm string) error {
 // AddRoutes adds a static route for all IPs monitored
 func (c *Client) AddRoutes() error {
 	for _, ip := range *c.ips {
-		if err := c.AddStaticRoute("", ip, c.community); err != nil {
+		if err := c.AddStaticRoute("", ip, ip.community); err != nil {
 			return err
 		}
-		log.WithFields(log.Fields{"Topic": "Route", "Route": ip, "Community": c.community}).Info("added route")
+		log.WithFields(log.Fields{"Topic": "Route", "Route": ip, "Community": ip.community}).Info("added route")
 	}
 	return nil
 }

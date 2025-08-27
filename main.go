@@ -3,8 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
-
 	log "github.com/sirupsen/logrus"
+	"net"
 )
 
 const (
@@ -17,9 +17,23 @@ const (
 	defaultNeighborPattern = "2600:3c0f:%d:34::%d"
 )
 
+type arrayFlags []string
+
+func (i *arrayFlags) String() string {
+	return fmt.Sprintf("%v", []string(*i))
+}
+
+func (i *arrayFlags) Set(value string) error {
+	*i = append(*i, value)
+	return nil
+}
+
+var primaryIps arrayFlags
+var secondaryIps arrayFlags
+
 func main() {
-	primary := flag.Bool("primary", false, "advertise as primary")
-	secondary := flag.Bool("secondary", false, "advertise as secondary")
+	flag.Var(&primaryIps, "primary", "Advertise as primary for a specific IP. Must contain CIDR notation")
+	flag.Var(&secondaryIps, "secondary", "Advertise as secondary for a specific IP. Must contain CIDR notation")
 	loglevel := flag.String("loglevel", "info", "set log level: trace, debug, info or warn")
 	logjson := flag.Bool("logjson", false, "set log format to json")
 	dcid := flag.Int("dcid", 0, "dcid for your DC")
@@ -48,9 +62,21 @@ func main() {
 		log.WithFields(log.Fields{"Topic": "Main"}).Fatal("dcid must be specified")
 	}
 
-	if !*primary && !*secondary {
+	if primaryIps == nil && secondaryIps == nil {
 		flag.Usage()
-		log.WithFields(log.Fields{"Topic": "Main"}).Fatal("use either primary or secondary flag")
+		log.WithFields(log.Fields{"Topic": "Main"}).Fatal("primary and/or secondary must be provided")
+	}
+
+	for _, ip := range primaryIps {
+		if _, _, err := net.ParseCIDR(ip); err != nil {
+			log.WithFields(log.Fields{"Topic": "Main"}).Fatalf("invalid primary ip: %s. Must be in CIDR notation", ip)
+		}
+	}
+
+	for _, ip := range secondaryIps {
+		if _, _, err := net.ParseCIDR(ip); err != nil {
+			log.WithFields(log.Fields{"Topic": "Main"}).Fatalf("invalid secondary ip: %s. Must be in CIDR notation", ip)
+		}
 	}
 
 	switch *loglevel {
@@ -68,29 +94,60 @@ func main() {
 		log.SetLevel(log.InfoLevel)
 	}
 
-	var myCommunity string
+	var communityMap map[string]string
+	communityMap = make(map[string]string)
 
-	switch {
-	case *primary:
-		myCommunity = communityPrimary
-	case *secondary:
-		myCommunity = communitySecondary
-	default:
-		log.WithFields(log.Fields{"Topic": "Main"}).Fatal("use either primary or secondary flag")
+	if len(primaryIps) > 0 {
+		for _, ip := range primaryIps {
+			communityMap[ip] = communityPrimary
+		}
 	}
 
-	//ips
+	if len(secondaryIps) > 0 {
+		for _, ip := range secondaryIps {
+			communityMap[ip] = communitySecondary
+		}
+	}
+
 	v6Mask := 64
 	if *send56 {
 		v6Mask = 56
 	}
 
-	ips, err := getIPs(v6Mask, *allIfs)
+	allIps, err := getIPs(v6Mask, *allIfs)
 	if err != nil {
 		log.WithFields(log.Fields{"Topic": "Main"}).Fatalf("unable to detect IPs: %v", err)
 	}
 
-	c, err := NewClient(myCommunity, ips)
+	var ips []IPNet
+
+	// Filter the list of IPs to only include the ones we want to advertise
+	if len(communityMap) > 0 {
+		for _, ipData := range *allIps {
+			ipString := ipData.String()
+			if _, ok := communityMap[ipString]; ok {
+				log.WithFields(log.Fields{"Topic": "Main"}).Infof("advertising IP %s with community %s", ipString, communityMap[ipString])
+				ipData.community = communityMap[ipString]
+				ips = append(ips, ipData)
+			} else {
+				log.WithFields(log.Fields{"Topic": "Main", "IP": ipString}).Warnf("not advetising IP %s as it was not specified", ipString)
+			}
+		}
+	} else {
+		log.WithFields(log.Fields{"Topic": "Main"}).Info("no IPs specified, advertising all IPs")
+		ips = *allIps
+	}
+
+	if len(ips) != len(communityMap) {
+		log.WithFields(log.Fields{
+			"Topic":                 "Main",
+			"Detected":              ips,
+			"Requested Primaries":   primaryIps,
+			"Requested Secondaries": secondaryIps,
+		}).Fatal("Unable to detect all IPs specified. Check the IP addresses assigned to 'lo' or alternatively try the -allifs flag")
+	}
+
+	c, err := NewClient(&ips)
 	if err != nil {
 		log.WithFields(log.Fields{"Topic": "Main"}).Fatal("failed to initiate the client: ", err)
 	}
