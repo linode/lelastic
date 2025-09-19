@@ -6,10 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/any"
 	api "github.com/osrg/gobgp/v3/api"
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 // IPNet is a extension of net.IPNet with some addons
@@ -69,7 +68,7 @@ func getPath(p IPNet, nh string, myCom string) (*api.Path, error) {
 		nhvar = append(nhvar, nh)
 	}
 
-	nlri, _ := ptypes.MarshalAny(&api.IPAddressPrefix{
+	nlri, _ := anypb.New(&api.IPAddressPrefix{
 		Prefix:    p.IP.String(),
 		PrefixLen: p.Plen(),
 	})
@@ -87,17 +86,17 @@ func getPath(p IPNet, nh string, myCom string) (*api.Path, error) {
 		}
 	}
 
-	attrs, _ := ptypes.MarshalAny(&api.MpReachNLRIAttribute{
+	attrs, _ := anypb.New(&api.MpReachNLRIAttribute{
 		Family:   family,
 		NextHops: nhvar,
-		Nlris:    []*any.Any{nlri},
+		Nlris:    []*anypb.Any{nlri},
 	})
 
-	com, _ := ptypes.MarshalAny(&api.CommunitiesAttribute{
+	com, _ := anypb.New(&api.CommunitiesAttribute{
 		Communities: []uint32{c},
 	})
 
-	origin, _ := ptypes.MarshalAny(&api.OriginAttribute{
+	origin, _ := anypb.New(&api.OriginAttribute{
 		Origin: 2, // needs to be 2 for static route redistribution
 	})
 
@@ -107,19 +106,20 @@ func getPath(p IPNet, nh string, myCom string) (*api.Path, error) {
 	return &api.Path{
 		Family: family,
 		Nlri:   nlri,
-		Pattrs: []*any.Any{origin, attrs, com},
+		Pattrs: []*anypb.Any{origin, attrs, com},
 	}, nil
 }
 
-//get all local IPs elegible to be elastic IP
+// get all local IPs elegible to be elastic IP
 func getIPs(v6Mask int, allIfs bool) (*[]IPNet, error) {
 	var addrs []net.Addr
 	var err error
+	var lo *net.Interface
 
 	if allIfs {
 		addrs, err = net.InterfaceAddrs()
 	} else {
-		lo, err := net.InterfaceByName("lo")
+		lo, err = net.InterfaceByName("lo")
 		if err != nil {
 			return nil, err
 		}
