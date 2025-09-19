@@ -1,6 +1,8 @@
 module bits.linode.com/netops/lelastic
 
-go 1.17
+go 1.25
+
+toolchain go1.25.1
 
 require (
 	github.com/osrg/gobgp/v3 v3.1.0
