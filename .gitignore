@@ -1,3 +1,6 @@
 /lelastic
 /lelastic.gz
 gobgp
+
+# Makefile artifacts
+generated_version
