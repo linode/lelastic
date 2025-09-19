@@ -25,23 +25,27 @@ var (
 )
 
 func main() {
-	versionFlag := flag.Bool("version", false, "print lelastic version and exit")
-	primary := flag.Bool("primary", false, "advertise as primary")
-	secondary := flag.Bool("secondary", false, "advertise as secondary")
-	loglevel := flag.String("loglevel", "info", "set log level: trace, debug, info or warn")
-	logjson := flag.Bool("logjson", false, "set log format to json")
-	dcid := flag.Int("dcid", 0, "dcid for your DC")
-	send56 := flag.Bool("send56", false, "Advertise ipv6 as /56 subnet (defaults to /64)")
+	versionInfo := flag.Bool("version", false, "Print lelastic version and exit")
+	primary := flag.Bool("primary", false, "Advertise as primary")
+	secondary := flag.Bool("secondary", false, "Advertise as secondary")
+	loglevel := flag.String("loglevel", "info", "Set log level: trace, debug, info or warn")
+	logjson := flag.Bool("logjson", false, "Set log format to json")
+	dcid := flag.Int("dcid", 0, "Set DCID (datacenter ID) for your DC")
+	send56 := flag.Bool("send56", false, "Advertise IPv6 as /56 subnet (defaults to /64)")
 	allIfs := flag.Bool(
 		"allifs",
 		false,
 		"Consider all interfaces when detecting elastic IP candidates (not just loopback)",
 	)
-	neighborPattern := flag.String("neighborpattern", defaultNeighborPattern, "The pattern to use for generating neighbor addresses. Only use this when running lelastic outside of production Linode datacenters.")
+	neighborPattern := flag.String(
+		"neighborpattern",
+		defaultNeighborPattern,
+		"The pattern to use for generating neighbor addresses. Only use this when running lelastic outside of production Linode datacenters.",
+	)
 
 	flag.Parse()
 
-	if *versionFlag {
+	if *versionInfo {
 		fmt.Printf("%s\n  version:    %s\n  commit:     %s\n  build date: %s\n",
 			os.Args[0], version, commit, buildDate)
 		os.Exit(0)
