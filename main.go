@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -17,7 +18,14 @@ const (
 	defaultNeighborPattern = "2600:3c0f:%d:34::%d"
 )
 
+var (
+	version   = "0.0.0"
+	commit    = "00000000"
+	buildDate = "0000-00-00"
+)
+
 func main() {
+	versionFlag := flag.Bool("version", false, "print lelastic version and exit")
 	primary := flag.Bool("primary", false, "advertise as primary")
 	secondary := flag.Bool("secondary", false, "advertise as secondary")
 	loglevel := flag.String("loglevel", "info", "set log level: trace, debug, info or warn")
@@ -32,6 +40,12 @@ func main() {
 	neighborPattern := flag.String("neighborpattern", defaultNeighborPattern, "The pattern to use for generating neighbor addresses. Only use this when running lelastic outside of production Linode datacenters.")
 
 	flag.Parse()
+
+	if *versionFlag {
+		fmt.Printf("%s\n  version:    %s\n  commit:     %s\n  build date: %s\n",
+			os.Args[0], version, commit, buildDate)
+		os.Exit(0)
+	}
 
 	if *logjson {
 		log.SetFormatter(&log.JSONFormatter{})
