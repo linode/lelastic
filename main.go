@@ -29,6 +29,7 @@ func main() {
 		false,
 		"Consider all interfaces when detecting elastic IP candidates (not just loopback)",
 	)
+	multihopTtl := flag.Int("multihopttl", 16, "TTL for eBGP multihop neighbors")
 	neighborPattern := flag.String("neighborpattern", defaultNeighborPattern, "The pattern to use for generating neighbor addresses. Only use this when running lelastic outside of production Linode datacenters.")
 
 	flag.Parse()
@@ -99,7 +100,7 @@ func main() {
 
 	for i := 1; i <= 4; i++ {
 		var rs = fmt.Sprintf(*neighborPattern, *dcid, i)
-		if err := c.AddRs(rs); err != nil {
+		if err := c.AddRs(rs, uint32(*multihopTtl)); err != nil {
 			log.WithFields(log.Fields{"Topic": "Neighbor", "Neighbor": rs}).Fatal("failed adding neighbor")
 		}
 		// log.WithFields(log.Fields{"Topic": "Neighbor", "Neighbor": rs}).Info("added neighbor")
