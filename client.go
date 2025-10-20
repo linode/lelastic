@@ -60,7 +60,7 @@ func NewClient(c string, ips *[]IPNet) (*Client, error) {
 }
 
 // AddRs adds route-server peerings to the bgp session
-func (c *Client) AddRs(rs string) error {
+func (c *Client) AddRs(rs string, multihop uint32) error {
 	n := &api.Peer{
 		ApplyPolicy: &api.ApplyPolicy{
 			ExportPolicy: &api.PolicyAssignment{
@@ -81,7 +81,7 @@ func (c *Client) AddRs(rs string) error {
 		},
 		EbgpMultihop: &api.EbgpMultihop{
 			Enabled:     true,
-			MultihopTtl: 10,
+			MultihopTtl: multihop,
 		},
 		Timers: &api.Timers{
 			Config: &api.TimersConfig{
